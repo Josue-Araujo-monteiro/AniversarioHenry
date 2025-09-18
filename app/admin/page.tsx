@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 
 interface Confirmation {
@@ -34,11 +36,93 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
   const [maxGuests, setMaxGuests] = useState(100)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [loginPassword, setLoginPassword] = useState("")
+  const [showLogin, setShowLogin] = useState(true)
+  const [loginError, setLoginError] = useState("")
+  const [confirmationToDelete, setConfirmationToDelete] = useState<Confirmation | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
 
+  // Senha simples para acesso (em produção, use autenticação adequada)
+  const ADMIN_PASSWORD = "Jesinha0390"
+
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (isLoggedIn) {
+      fetchData()
+    }
+  }, [isLoggedIn])
+
+  const handleLogin = () => {
+    if (loginPassword === ADMIN_PASSWORD) {
+      setIsLoggedIn(true)
+      setShowLogin(false)
+      setLoginError("")
+      toast({
+        title: "Login realizado!",
+        description: "Bem-vindo ao painel administrativo.",
+      })
+    } else {
+      setLoginError("Senha incorreta. Tente novamente.")
+      toast({
+        title: "Senha incorreta",
+        description: "Tente novamente.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleLogout = () => {
+    setIsLoggedIn(false)
+    setShowLogin(true)
+    setLoginPassword("")
+    setLoginError("")
+    setConfirmations([])
+    setSettings(null)
+  }
+
+  const handleDeleteConfirmation = async () => {
+    if (!confirmationToDelete) {
+      console.log("Nenhuma confirmação selecionada para remoção")
+      return
+    }
+
+    console.log("Iniciando remoção da confirmação:", confirmationToDelete.name)
+    setIsDeleting(true)
+    
+    try {
+      const supabase = createClient()
+      console.log("Tentando remover confirmação com ID:", confirmationToDelete.id)
+      
+      const { error } = await supabase
+        .from("confirmations")
+        .delete()
+        .eq("id", confirmationToDelete.id)
+
+      if (error) {
+        console.error("Erro do Supabase:", error)
+        throw error
+      }
+
+      console.log("Confirmação removida com sucesso")
+      toast({
+        title: "Confirmação removida!",
+        description: `${confirmationToDelete.name} foi removido da lista.`,
+      })
+
+      await fetchData()
+      setConfirmationToDelete(null)
+    } catch (error) {
+      console.error("Erro ao remover confirmação:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover a confirmação",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const fetchData = async () => {
     try {
@@ -144,6 +228,7 @@ export default function AdminPage() {
     }
   }
 
+  // Cálculos corrigidos
   const totalGuests = confirmations
     .filter(c => c.will_attend)
     .reduce((sum, c) => {
@@ -151,7 +236,71 @@ export default function AdminPage() {
       return sum + (c.people_over_6 || 1) // Se não tiver dados, assume 1 (pessoa principal)
     }, 0)
 
+  const totalChildrenUnder6 = confirmations
+    .filter(c => c.will_attend)
+    .reduce((sum, c) => {
+      const childrenUnder6 = c.number_of_people - (c.people_over_6 || 1)
+      return sum + Math.max(0, childrenUnder6)
+    }, 0)
+
+  const totalPeople = totalGuests + totalChildrenUnder6
+
   const totalConfirmations = confirmations.filter(c => c.will_attend).length
+  const totalNotAttending = confirmations.filter(c => !c.will_attend).length
+
+  // Tela de login
+  if (showLogin) {
+    return (
+      <div className="min-h-screen overflow-y-auto p-4" style={{ backgroundColor: "#F8FAF9" }}>
+        <div className="flex items-center justify-center min-h-screen">
+          <Card className="w-full max-w-md" style={{ backgroundColor: "#ECF2F2", borderColor: "#A9D2D8" }}>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl" style={{ color: "#D0AC8A" }}>
+                Acesso Administrativo
+              </CardTitle>
+              <p style={{ color: "#5A9BA5" }}>
+                Digite a senha para acessar o painel
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="password" style={{ color: "#D0AC8A" }}>
+                  Senha
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={loginPassword}
+                  onChange={(e) => {
+                    setLoginPassword(e.target.value)
+                    if (loginError) setLoginError("")
+                  }}
+                  onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                  placeholder="Digite a senha"
+                  style={{ 
+                    borderColor: loginError ? "#ef4444" : "#A9D2D8",
+                    backgroundColor: loginError ? "#fef2f2" : "white"
+                  }}
+                />
+                {loginError && (
+                  <p className="text-sm mt-1" style={{ color: "#ef4444" }}>
+                    {loginError}
+                  </p>
+                )}
+              </div>
+              <Button
+                onClick={handleLogin}
+                className="w-full"
+                style={{ backgroundColor: "#FFCAAB", color: "#D0AC8A" }}
+              >
+                Entrar
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -168,21 +317,30 @@ export default function AdminPage() {
     <div className="min-h-screen p-6" style={{ backgroundColor: "#F8FAF9" }}>
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <div className="text-center">
-          <h1 className="text-4xl font-bold mb-2" style={{ color: "#D0AC8A" }}>
-            Painel Administrativo
-          </h1>
-          <p className="text-lg" style={{ color: "#5A9BA5" }}>
-            Gerenciar confirmações da festa do Henry
-          </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold mb-2" style={{ color: "#D0AC8A" }}>
+              Painel Administrativo
+            </h1>
+            <p className="text-lg" style={{ color: "#5A9BA5" }}>
+              Gerenciar confirmações da festa do Henry
+            </p>
+          </div>
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            style={{ borderColor: "#A9D2D8", color: "#D0AC8A" }}
+          >
+            Sair
+          </Button>
         </div>
 
         {/* Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card style={{ backgroundColor: "#ECF2F2", borderColor: "#A9D2D8" }}>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg" style={{ color: "#D0AC8A" }}>
-                Total de Pessoas
+                Pessoas 6+ anos
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -190,7 +348,7 @@ export default function AdminPage() {
                 {totalGuests}
               </div>
               <p className="text-sm" style={{ color: "#D0AC8A" }}>
-                de {settings?.max_guests || 100} vagas (apenas +6 anos)
+                de {settings?.max_guests || 100} vagas
               </p>
             </CardContent>
           </Card>
@@ -198,7 +356,23 @@ export default function AdminPage() {
           <Card style={{ backgroundColor: "#ECF2F2", borderColor: "#A9D2D8" }}>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg" style={{ color: "#D0AC8A" }}>
-                Confirmações
+                Crianças &lt;6 anos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold" style={{ color: "#5A9BA5" }}>
+                {totalChildrenUnder6}
+              </div>
+              <p className="text-sm" style={{ color: "#D0AC8A" }}>
+                crianças pequenas
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card style={{ backgroundColor: "#ECF2F2", borderColor: "#A9D2D8" }}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg" style={{ color: "#D0AC8A" }}>
+                Total Confirmado
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -206,7 +380,7 @@ export default function AdminPage() {
                 {totalConfirmations}
               </div>
               <p className="text-sm" style={{ color: "#D0AC8A" }}>
-                famílias confirmaram
+                famílias ({totalPeople} pessoas)
               </p>
             </CardContent>
           </Card>
@@ -228,6 +402,9 @@ export default function AdminPage() {
               >
                 {settings?.registration_enabled ? "Ativo" : "Pausado"}
               </Badge>
+              <p className="text-xs mt-1" style={{ color: "#D0AC8A" }}>
+                {totalNotAttending} não vão
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -303,7 +480,7 @@ export default function AdminPage() {
                 Nenhuma confirmação ainda
               </p>
             ) : (
-              <div className="space-y-4 max-h-96 overflow-y-auto">
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
                 {confirmations.map((confirmation) => (
                   <div
                     key={confirmation.id}
@@ -314,7 +491,7 @@ export default function AdminPage() {
                     }}
                   >
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-1">
                         <h3 className="font-semibold" style={{ color: "#D0AC8A" }}>
                           {confirmation.name}
                         </h3>
@@ -351,17 +528,35 @@ export default function AdminPage() {
                           </div>
                         )}
                       </div>
-                      <div className="text-right">
-                        <Badge 
-                          variant={confirmation.will_attend ? "default" : "destructive"}
-                          style={{ 
-                            backgroundColor: confirmation.will_attend ? "#5A9BA5" : "#ef4444",
-                            color: "white"
-                          }}
-                        >
-                          {confirmation.will_attend ? "Confirmado" : "Não vai"}
-                        </Badge>
-                        <p className="text-xs mt-1" style={{ color: "#5A9BA5" }}>
+                      <div className="text-right ml-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge 
+                            variant={confirmation.will_attend ? "default" : "destructive"}
+                            style={{ 
+                              backgroundColor: confirmation.will_attend ? "#5A9BA5" : "#ef4444",
+                              color: "white"
+                            }}
+                          >
+                            {confirmation.will_attend ? "Confirmado" : "Não vai"}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              console.log("Botão remover clicado para:", confirmation.name)
+                              setConfirmationToDelete(confirmation)
+                            }}
+                            style={{ 
+                              borderColor: "#ef4444", 
+                              color: "#ef4444",
+                              fontSize: "12px",
+                              padding: "4px 8px"
+                            }}
+                          >
+                            Remover
+                          </Button>
+                        </div>
+                        <p className="text-xs" style={{ color: "#5A9BA5" }}>
                           {new Date(confirmation.created_at).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
@@ -373,6 +568,40 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal de confirmação de remoção */}
+      <AlertDialog open={!!confirmationToDelete} onOpenChange={() => setConfirmationToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle style={{ color: "#D0AC8A" }}>
+              Confirmar Remoção
+            </AlertDialogTitle>
+            <AlertDialogDescription style={{ color: "#5A9BA5" }}>
+              Tem certeza que deseja remover a confirmação de <strong>{confirmationToDelete?.name}</strong>?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => setConfirmationToDelete(null)}
+              style={{ borderColor: "#A9D2D8", color: "#D0AC8A" }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirmation}
+              disabled={isDeleting}
+              style={{ 
+                backgroundColor: "#ef4444", 
+                color: "white",
+                opacity: isDeleting ? 0.7 : 1
+              }}
+            >
+              {isDeleting ? "Removendo..." : "Remover"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
