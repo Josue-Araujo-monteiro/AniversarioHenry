@@ -17,10 +17,10 @@ export const metadata: Metadata = {
     siteName: 'Aniversário do Henry',
     images: [
       {
-        url: '/image/leoPrincipal.png',
+        url: '/image/urso aviador  (1).png',
         width: 400,
         height: 400,
-        alt: 'Leão piloto no avião - Henry',
+        alt: 'Urso aviador no avião - Henry',
       },
     ],
   },
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Convite Especial - Aniversário do Henry 🎉',
     description: 'Você está convidado para a festa de 1 ano do Henry! Confirme sua presença e veja todos os detalhes da festa.',
-    images: ['/image/leoPrincipal.png'],
+    images: ['/image/urso aviador  (1).png'],
   },
   robots: {
     index: true,

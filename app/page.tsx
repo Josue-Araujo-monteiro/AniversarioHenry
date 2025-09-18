@@ -356,12 +356,12 @@ function InvitationPage() {
           </h1>
         </div>
 
-        {/* Imagem do leão com animação de loop contínuo */}
+        {/* Imagem do urso aviador com animação de loop contínuo */}
         <div className="relative h-60 w-full overflow-hidden">
-          <div className="lion-animation-loop">
+          <div className="bear-animation-loop">
             <img
-              src="/image/leoPrincipal.png"
-              alt="Leão piloto no avião"
+              src="/image/urso aviador  (1).png"
+              alt="Urso aviador no avião"
               className="w-60 h-60 object-contain"
             />
           </div>
@@ -511,11 +511,11 @@ function InvitationPage() {
 
       {/* CSS para animações */}
       <style jsx>{`
-        .lion-animation-loop {
-          animation: lionFlyLoop 20s linear infinite;
+        .bear-animation-loop {
+          animation: bearFlyLoop 20s linear infinite;
         }
         
-        @keyframes lionFlyLoop {
+        @keyframes bearFlyLoop {
           0% {
             transform: translateX(-100vw) translateY(20px) rotate(-5deg) scale(1);
             opacity: 0;
