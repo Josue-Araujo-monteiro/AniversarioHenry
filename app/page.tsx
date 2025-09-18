@@ -252,12 +252,11 @@ function InvitationPage() {
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        backgroundAttachment: "fixed",
-        width: "100vw",
-        height: "100vh",
+        backgroundAttachment: "scroll",
+        width: "100%",
+        minHeight: "100vh",
         margin: 0,
-        padding: 0,
-        overflow: "hidden"
+        padding: "1rem"
       }}
     >
       {/* Gradiente de contraste para melhor legibilidade */}
@@ -343,7 +342,7 @@ function InvitationPage() {
         </div>
       </div>
 
-      <div className="w-full max-w-md mx-auto space-y-8 relative z-10 px-4">
+      <div className="w-full max-w-md mx-auto space-y-8 relative z-10 px-4 pb-8">
         {/* Primeira frase */}
         <div className="text-center animate-slide-in-left">
           <h1 
@@ -459,14 +458,14 @@ function InvitationPage() {
                 Horário
               </p>
               <p className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-serif font-bold" style={{ color: "#6bbbc7" }}>
-                18:00
+                19:00
               </p>
             </div>
           </div>
 
         </div>
 
-                    <div className="grid grid-cols-3 gap-4 md:gap-6">
+                    <div className="grid grid-cols-3 gap-2 md:gap-4 lg:gap-6 mb-4">
                       <div className="animate-bounce-in-delay-1 flex flex-col items-center space-y-2">
                         <ActionButton
                           icon="/image/whatsapp.png"
@@ -772,60 +771,71 @@ function InvitationPage() {
         }
       `}</style>
       
-      {/* CSS para corrigir problemas do modal e scroll */}
+      {/* CSS para layout responsivo com scroll */}
       <style jsx global>{`
-        /* Reset completo para evitar scroll */
+        /* Reset básico */
         html, body {
           margin: 0 !important;
           padding: 0 !important;
-          width: 100vw !important;
-          height: 100vh !important;
-          overflow: hidden !important;
-          position: fixed !important;
-          top: 0 !important;
-          left: 0 !important;
+          width: 100% !important;
+          min-height: 100vh !important;
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
         }
         
-        /* Container principal deve ocupar toda a tela */
+        /* Container principal responsivo */
         .min-h-screen {
           margin: 0 !important;
           padding: 0 !important;
-          width: 100vw !important;
-          height: 100vh !important;
-          overflow: hidden !important;
+          width: 100% !important;
+          min-height: 100vh !important;
+          overflow: visible !important;
           position: relative !important;
         }
         
-        /* Garantir que o background cubra toda a tela */
+        /* Background responsivo */
         .min-h-screen[style*="background-image"] {
-          background-attachment: fixed !important;
+          background-attachment: scroll !important;
           background-position: center !important;
           background-size: cover !important;
           background-repeat: no-repeat !important;
-          width: 100vw !important;
-          height: 100vh !important;
+          width: 100% !important;
+          min-height: 100vh !important;
         }
         
-        /* Prevenir scroll em todos os elementos */
+        /* Box sizing para todos os elementos */
         * {
           box-sizing: border-box !important;
         }
         
-        /* Garantir que o conteúdo não cause overflow */
+        /* Container de conteúdo responsivo */
         .max-w-md {
-          max-width: 100vw !important;
+          max-width: 100% !important;
           width: 100% !important;
+          padding: 0 1rem !important;
         }
         
-        /* Prevenir que elementos saiam da tela */
+        /* Espaçamento responsivo */
         .space-y-8 > * {
           max-width: 100% !important;
         }
         
-        /* Garantir que textos não quebrem o layout */
+        /* Textos responsivos */
         .text-9xl, .text-8xl, .text-7xl, .text-6xl {
           word-wrap: break-word !important;
           overflow-wrap: break-word !important;
+        }
+        
+        /* Garantir que botões sejam acessíveis no mobile */
+        @media (max-width: 768px) {
+          .space-y-8 {
+            padding-bottom: 2rem !important;
+          }
+          
+          .grid.grid-cols-3 {
+            gap: 1rem !important;
+            margin-bottom: 2rem !important;
+          }
         }
       `}</style>
       
@@ -916,6 +926,8 @@ function ConfirmationModal({ open, onOpenChange }: { open: boolean; onOpenChange
       const { data, error } = await supabase
         .from("admin_settings")
         .select("registration_enabled")
+        .order("created_at", { ascending: true })
+        .limit(1)
         .single()
 
       if (!error && data) {
@@ -959,7 +971,20 @@ function ConfirmationModal({ open, onOpenChange }: { open: boolean; onOpenChange
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) return
+    console.log("Formulário submetido")
+    
+    if (!name.trim()) {
+      console.log("Nome vazio, cancelando envio")
+      return
+    }
+
+    console.log("Dados do formulário:", {
+      name: name.trim(),
+      willAttend,
+      numberOfPeople,
+      peopleNames,
+      peopleAges
+    })
 
     setIsLoading(true)
 
@@ -969,9 +994,7 @@ function ConfirmationModal({ open, onOpenChange }: { open: boolean; onOpenChange
       const peopleOver6 = peopleAges.filter(age => age >= 6).length
       const hasChildrenOver6 = peopleAges.some(age => age >= 6)
       
-      // Salvar no Supabase
-      const supabase = createClient()
-      const { error } = await supabase.from("confirmations").insert({
+      console.log("Dados preparados para inserção:", {
         name: name.trim(),
         will_attend: willAttend === "true",
         number_of_people: numberOfPeople,
@@ -979,8 +1002,59 @@ function ConfirmationModal({ open, onOpenChange }: { open: boolean; onOpenChange
         people_over_6: peopleOver6,
         has_children_over_6: hasChildrenOver6,
       })
+      
+      // Salvar no Supabase
+      const supabase = createClient()
+      console.log("Tentando inserir no Supabase...")
+      
+      // Tentar inserir com todas as colunas primeiro
+      let insertData = {
+        name: name.trim(),
+        will_attend: willAttend === "true",
+      }
 
-      if (error) throw error
+      // Adicionar colunas opcionais se existirem
+      let data, error
+      
+      try {
+        const result = await supabase.from("confirmations").insert({
+          ...insertData,
+          number_of_people: numberOfPeople,
+          additional_names: additionalNames,
+          people_over_6: peopleOver6,
+          has_children_over_6: hasChildrenOver6,
+        }).select()
+
+        data = result.data
+        error = result.error
+
+        if (error) {
+          console.log("Tentando inserção com colunas básicas...")
+          // Se falhar, tentar apenas com colunas básicas
+          const basicResult = await supabase.from("confirmations").insert(insertData).select()
+          
+          if (basicResult.error) {
+            console.error("Erro com colunas básicas:", basicResult.error)
+            throw basicResult.error
+          }
+          
+          console.log("Inserção básica bem-sucedida:", basicResult.data)
+          data = basicResult.data
+          error = null
+        } else {
+          console.log("Inserção completa bem-sucedida:", data)
+        }
+      } catch (insertError) {
+        console.error("Erro na inserção:", insertError)
+        throw insertError
+      }
+
+      if (error) {
+        console.error("Erro do Supabase:", error)
+        throw error
+      }
+
+      console.log("Dados inseridos com sucesso:", data)
 
       // Criar mensagem para WhatsApp
       let message = ""
@@ -1010,9 +1084,10 @@ function ConfirmationModal({ open, onOpenChange }: { open: boolean; onOpenChange
       setPeopleAges([7])
       onOpenChange(false)
     } catch (error) {
+      console.error("Erro completo ao enviar confirmação:", error)
       toast({
         title: "Erro ao enviar confirmação",
-        description: "Tente novamente mais tarde.",
+        description: `Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive",
       })
     } finally {

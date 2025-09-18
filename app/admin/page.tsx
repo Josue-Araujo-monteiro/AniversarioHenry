@@ -51,6 +51,29 @@ export default function AdminPage() {
     if (isLoggedIn) {
       fetchData()
     }
+    
+    // Forçar remoção do position: fixed do body
+    const body = document.body
+    if (body) {
+      body.style.position = 'static'
+      body.style.top = 'auto'
+      body.style.left = 'auto'
+      body.style.overflow = 'auto'
+      body.style.height = 'auto'
+      body.style.minHeight = '100vh'
+    }
+    
+    return () => {
+      // Restaurar estilos quando sair da página
+      if (body) {
+        body.style.position = ''
+        body.style.top = ''
+        body.style.left = ''
+        body.style.overflow = ''
+        body.style.height = ''
+        body.style.minHeight = ''
+      }
+    }
   }, [isLoggedIn])
 
   const handleLogin = () => {
@@ -94,29 +117,48 @@ export default function AdminPage() {
       const supabase = createClient()
       console.log("Tentando remover confirmação com ID:", confirmationToDelete.id)
       
-      const { error } = await supabase
+      // Primeiro, vamos verificar se a confirmação existe
+      const { data: existingConfirmation, error: fetchError } = await supabase
+        .from("confirmations")
+        .select("id, name")
+        .eq("id", confirmationToDelete.id)
+        .single()
+
+      if (fetchError) {
+        console.error("Erro ao buscar confirmação:", fetchError)
+        throw new Error("Confirmação não encontrada")
+      }
+
+      console.log("Confirmação encontrada:", existingConfirmation)
+
+      // Agora vamos deletar
+      const { error: deleteError } = await supabase
         .from("confirmations")
         .delete()
         .eq("id", confirmationToDelete.id)
 
-      if (error) {
-        console.error("Erro do Supabase:", error)
-        throw error
+      if (deleteError) {
+        console.error("Erro do Supabase ao deletar:", deleteError)
+        throw deleteError
       }
 
-      console.log("Confirmação removida com sucesso")
+      console.log("Confirmação removida com sucesso do banco")
+      
+      // Atualizar a lista local imediatamente
+      setConfirmations(prev => prev.filter(c => c.id !== confirmationToDelete.id))
+      
       toast({
         title: "Confirmação removida!",
         description: `${confirmationToDelete.name} foi removido da lista.`,
       })
 
-      await fetchData()
+      // Fechar o modal
       setConfirmationToDelete(null)
     } catch (error) {
       console.error("Erro ao remover confirmação:", error)
       toast({
         title: "Erro",
-        description: "Não foi possível remover a confirmação",
+        description: `Não foi possível remover a confirmação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive",
       })
     } finally {
@@ -136,10 +178,12 @@ export default function AdminPage() {
 
       if (confirmationsError) throw confirmationsError
 
-      // Buscar configurações
+      // Buscar configurações (pegar o primeiro registro se houver múltiplos)
       const { data: settingsData, error: settingsError } = await supabase
         .from("admin_settings")
         .select("*")
+        .order("created_at", { ascending: true })
+        .limit(1)
         .single()
 
       if (settingsError) throw settingsError
@@ -314,7 +358,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen p-6" style={{ backgroundColor: "#F8FAF9" }}>
+    <div className="admin-page-container">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -480,7 +524,7 @@ export default function AdminPage() {
                 Nenhuma confirmação ainda
               </p>
             ) : (
-              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+              <div className="space-y-4 confirmations-list">
                 {confirmations.map((confirmation) => (
                   <div
                     key={confirmation.id}
@@ -602,6 +646,56 @@ export default function AdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* CSS para garantir scroll */}
+      <style jsx global>{`
+        /* Reset completo para página de admin */
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: auto !important;
+          height: auto !important;
+          min-height: 100vh !important;
+          position: static !important;
+          top: auto !important;
+          left: auto !important;
+        }
+        
+        /* Garantir que o container principal tenha scroll */
+        .admin-page-container {
+          min-height: 100vh !important;
+          height: auto !important;
+          overflow: auto !important;
+          padding: 1.5rem !important;
+          background-color: #F8FAF9 !important;
+        }
+        
+        /* Lista de confirmações com scroll */
+        .confirmations-list {
+          max-height: 600px;
+          overflow-y: auto;
+          padding-right: 0.5rem;
+        }
+        
+        /* Estilizar scrollbar */
+        .confirmations-list::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .confirmations-list::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+        
+        .confirmations-list::-webkit-scrollbar-thumb {
+          background: #A9D2D8;
+          border-radius: 4px;
+        }
+        
+        .confirmations-list::-webkit-scrollbar-thumb:hover {
+          background: #5A9BA5;
+        }
+      `}</style>
     </div>
   )
 }
