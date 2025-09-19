@@ -1255,7 +1255,7 @@ function ConfirmationModal({ open, onOpenChange }: { open: boolean; onOpenChange
               type="submit"
               disabled={isLoading || !name.trim()}
               className="w-full"
-              style={{ backgroundColor: "#FFCAAB", color: "#D0AC8A" }}
+              style={{ backgroundColor: "#d67842", color: "#ffffff" }}
             >
               {isLoading ? "Enviando..." : "Confirmar e Abrir WhatsApp"}
             </Button>
