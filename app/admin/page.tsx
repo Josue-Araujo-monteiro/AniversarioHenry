@@ -30,9 +30,20 @@ interface AdminSettings {
   updated_at: string
 }
 
+interface Gift {
+  id: string
+  name: string
+  description?: string
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 export default function AdminPage() {
   const [confirmations, setConfirmations] = useState<Confirmation[]>([])
   const [settings, setSettings] = useState<AdminSettings | null>(null)
+  const [gifts, setGifts] = useState<Gift[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
   const [maxGuests, setMaxGuests] = useState(100)
@@ -42,6 +53,10 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState("")
   const [confirmationToDelete, setConfirmationToDelete] = useState<Confirmation | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showGiftsModal, setShowGiftsModal] = useState(false)
+  const [editingGift, setEditingGift] = useState<Gift | null>(null)
+  const [newGiftName, setNewGiftName] = useState("")
+  const [newGiftDescription, setNewGiftDescription] = useState("")
   const { toast } = useToast()
 
   // Senha simples para acesso (em produção, use autenticação adequada)
@@ -102,6 +117,97 @@ export default function AdminPage() {
     setLoginError("")
     setConfirmations([])
     setSettings(null)
+  }
+
+  const handleAddGift = async () => {
+    if (!newGiftName.trim()) return
+
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from("gifts")
+        .insert({
+          name: newGiftName.trim(),
+          description: newGiftDescription.trim() || null,
+          sort_order: gifts.length + 1,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setGifts(prev => [...prev, data])
+      setNewGiftName("")
+      setNewGiftDescription("")
+      
+      toast({
+        title: "Presente adicionado!",
+        description: "O presente foi adicionado à lista.",
+      })
+    } catch (error) {
+      console.error("Erro ao adicionar presente:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível adicionar o presente",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleUpdateGift = async (gift: Gift) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from("gifts")
+        .update({
+          name: gift.name,
+          description: gift.description,
+          is_active: gift.is_active,
+        })
+        .eq("id", gift.id)
+
+      if (error) throw error
+
+      setGifts(prev => prev.map(g => g.id === gift.id ? gift : g))
+      
+      toast({
+        title: "Presente atualizado!",
+        description: "As alterações foram salvas.",
+      })
+    } catch (error) {
+      console.error("Erro ao atualizar presente:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o presente",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteGift = async (giftId: string) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from("gifts")
+        .delete()
+        .eq("id", giftId)
+
+      if (error) throw error
+
+      setGifts(prev => prev.filter(g => g.id !== giftId))
+      
+      toast({
+        title: "Presente removido!",
+        description: "O presente foi removido da lista.",
+      })
+    } catch (error) {
+      console.error("Erro ao remover presente:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover o presente",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleDeleteConfirmation = async () => {
@@ -188,8 +294,17 @@ export default function AdminPage() {
 
       if (settingsError) throw settingsError
 
+      // Buscar presentes
+      const { data: giftsData, error: giftsError } = await supabase
+        .from("gifts")
+        .select("*")
+        .order("sort_order", { ascending: true })
+
+      if (giftsError) throw giftsError
+
       setConfirmations(confirmationsData || [])
       setSettings(settingsData)
+      setGifts(giftsData || [])
       setMaxGuests(settingsData?.max_guests || 100)
     } catch (error) {
       console.error("Erro ao buscar dados:", error)
@@ -611,6 +726,55 @@ export default function AdminPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Gerenciamento de Presentes */}
+        <Card style={{ backgroundColor: "#ECF2F2", borderColor: "#A9D2D8" }}>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle style={{ color: "#D0AC8A" }}>
+                Lista de Presentes ({gifts.filter(g => g.is_active).length} ativos)
+              </CardTitle>
+              <Button
+                onClick={() => setShowGiftsModal(true)}
+                style={{ backgroundColor: "#FFCAAB", color: "#D0AC8A" }}
+              >
+                Gerenciar Presentes
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {gifts.filter(g => g.is_active).map((gift) => (
+                <div key={gift.id} className="flex items-center justify-between p-2 rounded border" style={{ borderColor: "#A9D2D8" }}>
+                  <div>
+                    <p className="font-medium" style={{ color: "#D0AC8A" }}>{gift.name}</p>
+                    {gift.description && (
+                      <p className="text-sm" style={{ color: "#5A9BA5" }}>{gift.description}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditingGift(gift)}
+                      style={{ borderColor: "#A9D2D8", color: "#D0AC8A" }}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeleteGift(gift.id)}
+                      style={{ borderColor: "#ef4444", color: "#ef4444" }}
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Modal de confirmação de remoção */}
@@ -646,6 +810,149 @@ export default function AdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal para gerenciar presentes */}
+      <Dialog open={showGiftsModal} onOpenChange={setShowGiftsModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle style={{ color: "#D0AC8A" }}>Gerenciar Lista de Presentes</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Adicionar novo presente */}
+            <div className="p-4 border rounded" style={{ borderColor: "#A9D2D8" }}>
+              <h3 className="font-medium mb-3" style={{ color: "#D0AC8A" }}>Adicionar Novo Presente</h3>
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="giftName" style={{ color: "#D0AC8A" }}>Nome do Presente *</Label>
+                  <Input
+                    id="giftName"
+                    value={newGiftName}
+                    onChange={(e) => setNewGiftName(e.target.value)}
+                    placeholder="Ex: Roupinhas (tamanho 1-2 anos)"
+                    style={{ borderColor: "#A9D2D8" }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="giftDescription" style={{ color: "#D0AC8A" }}>Descrição (opcional)</Label>
+                  <Input
+                    id="giftDescription"
+                    value={newGiftDescription}
+                    onChange={(e) => setNewGiftDescription(e.target.value)}
+                    placeholder="Ex: Roupas para bebê de 1 a 2 anos"
+                    style={{ borderColor: "#A9D2D8" }}
+                  />
+                </div>
+                <Button
+                  onClick={handleAddGift}
+                  disabled={!newGiftName.trim()}
+                  style={{ backgroundColor: "#FFCAAB", color: "#D0AC8A" }}
+                >
+                  Adicionar Presente
+                </Button>
+              </div>
+            </div>
+
+            {/* Lista de presentes */}
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {gifts.map((gift) => (
+                <div key={gift.id} className="flex items-center justify-between p-3 border rounded" style={{ borderColor: "#A9D2D8" }}>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={gift.is_active}
+                        onCheckedChange={(checked) => handleUpdateGift({ ...gift, is_active: checked })}
+                      />
+                      <div>
+                        <p className="font-medium" style={{ color: "#D0AC8A" }}>{gift.name}</p>
+                        {gift.description && (
+                          <p className="text-sm" style={{ color: "#5A9BA5" }}>{gift.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setEditingGift(gift)}
+                      style={{ borderColor: "#A9D2D8", color: "#D0AC8A" }}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeleteGift(gift.id)}
+                      style={{ borderColor: "#ef4444", color: "#ef4444" }}
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para editar presente */}
+      <Dialog open={!!editingGift} onOpenChange={() => setEditingGift(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle style={{ color: "#D0AC8A" }}>Editar Presente</DialogTitle>
+          </DialogHeader>
+          
+          {editingGift && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="editGiftName" style={{ color: "#D0AC8A" }}>Nome do Presente *</Label>
+                <Input
+                  id="editGiftName"
+                  value={editingGift.name}
+                  onChange={(e) => setEditingGift({ ...editingGift, name: e.target.value })}
+                  style={{ borderColor: "#A9D2D8" }}
+                />
+              </div>
+              <div>
+                <Label htmlFor="editGiftDescription" style={{ color: "#D0AC8A" }}>Descrição</Label>
+                <Input
+                  id="editGiftDescription"
+                  value={editingGift.description || ""}
+                  onChange={(e) => setEditingGift({ ...editingGift, description: e.target.value })}
+                  style={{ borderColor: "#A9D2D8" }}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={editingGift.is_active}
+                  onCheckedChange={(checked) => setEditingGift({ ...editingGift, is_active: checked })}
+                />
+                <Label style={{ color: "#D0AC8A" }}>Ativo</Label>
+              </div>
+              
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingGift(null)}
+                  style={{ borderColor: "#A9D2D8", color: "#D0AC8A" }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => {
+                    handleUpdateGift(editingGift)
+                    setEditingGift(null)
+                  }}
+                  style={{ backgroundColor: "#FFCAAB", color: "#D0AC8A" }}
+                >
+                  Salvar
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* CSS para garantir scroll */}
       <style jsx global>{`

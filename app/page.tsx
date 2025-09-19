@@ -1251,16 +1251,44 @@ function ConfirmationModal({ open, onOpenChange }: { open: boolean; onOpenChange
 }
 
 function GiftsModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const gifts = [
-    "Roupinhas (tamanho 1-2 anos)",
-    "Brinquedos educativos",
-    "Livros infantis",
-    "Fraldas (tamanho G ou GG)",
-    "Produtos de higiene infantil",
-    "Brinquedos de banho",
-    "Pelúcias macias",
-    "Blocos de montar grandes",
-  ]
+  const [gifts, setGifts] = useState<Array<{name: string, description?: string}>>([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      fetchGifts()
+    }
+  }, [open])
+
+  const fetchGifts = async () => {
+    setIsLoading(true)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from("gifts")
+        .select("name, description")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+
+      if (error) throw error
+      setGifts(data || [])
+    } catch (error) {
+      console.error("Erro ao buscar presentes:", error)
+      // Fallback para lista padrão
+      setGifts([
+        { name: "Roupinhas (tamanho 1-2 anos)" },
+        { name: "Brinquedos educativos" },
+        { name: "Livros infantis" },
+        { name: "Fraldas (tamanho G ou GG)" },
+        { name: "Produtos de higiene infantil" },
+        { name: "Brinquedos de banho" },
+        { name: "Pelúcias macias" },
+        { name: "Blocos de montar grandes" },
+      ])
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1279,16 +1307,30 @@ function GiftsModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open
           <p style={{ color: "#5A9BA5" }} className="text-sm">
             Ideias para presentear o Henry:
           </p>
-          <div className="grid grid-cols-1 gap-1 max-h-40 overflow-y-auto">
-            {gifts.map((gift, index) => (
-              <div key={index} className="flex items-center space-x-2 p-2 rounded-md" style={{ backgroundColor: "rgba(248, 250, 249, 0.5)" }}>
-                <span style={{ color: "#A9D2D8" }}>🎁</span>
-                <span style={{ color: "#D0AC8A" }} className="text-xs">
-                  {gift}
-                </span>
-              </div>
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 mx-auto mb-2" style={{ borderColor: "#A9D2D8" }}></div>
+              <p style={{ color: "#5A9BA5" }} className="text-xs">Carregando presentes...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-1 max-h-40 overflow-y-auto">
+              {gifts.map((gift, index) => (
+                <div key={index} className="flex items-start space-x-2 p-2 rounded-md" style={{ backgroundColor: "rgba(248, 250, 249, 0.5)" }}>
+                  <span style={{ color: "#A9D2D8" }}>🎁</span>
+                  <div>
+                    <span style={{ color: "#D0AC8A" }} className="text-xs font-medium">
+                      {gift.name}
+                    </span>
+                    {gift.description && (
+                      <p style={{ color: "#5A9BA5" }} className="text-xs mt-1">
+                        {gift.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <p style={{ color: "#A9D2D8" }} className="text-xs text-center pt-2">
             Lembre-se: sua presença já é o melhor presente! 💝
           </p>
