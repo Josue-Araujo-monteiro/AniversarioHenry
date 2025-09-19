@@ -506,10 +506,10 @@ function InvitationPage() {
             CLIQUE NOS LINKS PARA INTERAGIR
           </p>
         </div>
-      </div>
 
-      {/* Espaçamento para compensar a barra de navegação do iOS */}
-      <div className="h-20 md:h-24"></div>
+        {/* Div para compensar a barra de navegação do iOS */}
+        <div className="h-20 md:h-16 lg:h-12"></div>
+      </div>
 
 
       {/* CSS para animações */}
@@ -838,6 +838,19 @@ function InvitationPage() {
           .grid.grid-cols-3 {
             gap: 1rem !important;
             margin-bottom: 2rem !important;
+          }
+        }
+        
+        /* Compensação específica para iOS */
+        @supports (-webkit-touch-callout: none) {
+          .min-h-screen {
+            min-height: calc(100vh - env(safe-area-inset-bottom)) !important;
+            padding-bottom: env(safe-area-inset-bottom) !important;
+          }
+          
+          /* Espaçamento adicional para barra de navegação do iOS */
+          .space-y-8 {
+            padding-bottom: calc(2rem + env(safe-area-inset-bottom)) !important;
           }
         }
       `}</style>
