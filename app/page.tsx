@@ -508,6 +508,9 @@ function InvitationPage() {
         </div>
       </div>
 
+      {/* Espaçamento para compensar a barra de navegação do iOS */}
+      <div className="h-20 md:h-24"></div>
+
 
       {/* CSS para animações */}
       <style jsx>{`
