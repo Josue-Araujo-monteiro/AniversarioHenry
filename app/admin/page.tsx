@@ -407,6 +407,315 @@ export default function AdminPage() {
   const totalConfirmations = confirmations.filter(c => c.will_attend).length
   const totalNotAttending = confirmations.filter(c => !c.will_attend).length
 
+  // Função para gerar e baixar PDF da lista de convidados
+  const downloadGuestListPDF = (sortAlphabetically = false) => {
+    try {
+      // Filtrar apenas convidados confirmados
+      let attendingGuests = confirmations.filter(c => c.will_attend)
+      
+      // Ordenar alfabeticamente se solicitado
+      if (sortAlphabetically) {
+        attendingGuests = attendingGuests.sort((a, b) => 
+          a.name.toLowerCase().localeCompare(b.name.toLowerCase(), 'pt-BR')
+        )
+      }
+      
+      // Criar conteúdo HTML para o PDF
+      let htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Lista de Convidados - Aniversário do Henry</title>
+          <style>
+            @page {
+              size: A4;
+              margin: 1cm;
+            }
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              color: #333;
+              line-height: 1.4;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #A9D2D8;
+              padding-bottom: 20px;
+            }
+            .title {
+              font-size: 28px;
+              color: #D0AC8A;
+              margin-bottom: 10px;
+              font-weight: bold;
+            }
+            .subtitle {
+              font-size: 18px;
+              color: #5A9BA5;
+              font-weight: 500;
+            }
+            .stats {
+              display: flex;
+              justify-content: space-around;
+              margin: 25px 0;
+              background-color: #F8FAF9;
+              padding: 20px;
+              border-radius: 10px;
+              border: 1px solid #A9D2D8;
+            }
+            .stat-item {
+              text-align: center;
+            }
+            .stat-number {
+              font-size: 24px;
+              font-weight: bold;
+              color: #5A9BA5;
+              margin-bottom: 5px;
+            }
+            .stat-label {
+              font-size: 14px;
+              color: #D0AC8A;
+              font-weight: 500;
+            }
+            .guest-list {
+              margin-top: 25px;
+            }
+            .guest-list-title {
+              color: #D0AC8A;
+              font-size: 20px;
+              font-weight: bold;
+              margin-bottom: 20px;
+              text-align: center;
+              background-color: #ECF2F2;
+              padding: 15px;
+              border-radius: 8px;
+              border: 1px solid #A9D2D8;
+            }
+            .guest-item {
+              background-color: #F8FAF9;
+              border: 1px solid #A9D2D8;
+              border-radius: 8px;
+              padding: 15px;
+              margin-bottom: 12px;
+              page-break-inside: avoid;
+            }
+            .guest-name {
+              font-size: 16px;
+              font-weight: bold;
+              color: #D0AC8A;
+              margin-bottom: 8px;
+            }
+            .guest-details {
+              font-size: 14px;
+              color: #5A9BA5;
+            }
+            .people-list {
+              margin-bottom: 10px;
+              padding: 10px;
+              background-color: #ECF2F2;
+              border-radius: 6px;
+              border: 1px solid #A9D2D8;
+            }
+            .person-detail {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 5px;
+              padding: 3px 0;
+            }
+            .person-detail:last-child {
+              margin-bottom: 0;
+            }
+            .person-name {
+              font-weight: 500;
+              color: #D0AC8A;
+              font-size: 14px;
+            }
+            .person-age {
+              font-size: 12px;
+              color: #5A9BA5;
+              font-style: italic;
+              background-color: #F8FAF9;
+              padding: 2px 8px;
+              border-radius: 10px;
+              border: 1px solid #A9D2D8;
+            }
+            .summary-badges {
+              margin: 10px 0;
+            }
+            .badge {
+              display: inline-block;
+              background-color: #5A9BA5;
+              color: white;
+              padding: 4px 10px;
+              border-radius: 15px;
+              font-size: 12px;
+              margin-right: 8px;
+              margin-bottom: 5px;
+              font-weight: 500;
+            }
+            .badge-children {
+              background-color: #94a3b8;
+            }
+            .guest-date {
+              color: #5A9BA5;
+              font-size: 12px;
+              font-style: italic;
+              margin-top: 5px;
+            }
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              font-size: 12px;
+              color: #5A9BA5;
+              border-top: 2px solid #A9D2D8;
+              padding-top: 20px;
+            }
+            .footer p {
+              margin: 5px 0;
+            }
+            @media print {
+              body { 
+                margin: 0; 
+                padding: 15px;
+              }
+              .guest-item {
+                page-break-inside: avoid;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">🎉 Lista de Convidados - Aniversário do Henry</div>
+            <div class="subtitle">Festa de 1 ano - 31 de Outubro de 2024 - 19:00h</div>
+          </div>
+          
+          <div class="stats">
+            <div class="stat-item">
+              <div class="stat-number">${totalGuests}</div>
+              <div class="stat-label">Pessoas 6+ anos</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">${totalChildrenUnder6}</div>
+              <div class="stat-label">Crianças &lt;6 anos</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">${totalPeople}</div>
+              <div class="stat-label">Total de Pessoas</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">${totalConfirmations}</div>
+              <div class="stat-label">Famílias</div>
+            </div>
+          </div>
+          
+          <div class="guest-list">
+            <div class="guest-list-title">
+              Lista de Convidados Confirmados (${attendingGuests.length})
+              ${sortAlphabetically ? ' - Ordem Alfabética' : ''}
+            </div>
+      `
+      
+      // Adicionar cada convidado
+      attendingGuests.forEach((guest, index) => {
+        const additionalNames = guest.additional_names ? guest.additional_names.split(', ') : []
+        const peopleOver6 = guest.people_over_6 || 1
+        const childrenUnder6 = guest.number_of_people - peopleOver6
+        
+        // Criar lista detalhada de pessoas
+        let detailedPeopleList = ''
+        
+        // Pessoa principal (sempre 6+ anos)
+        detailedPeopleList += `
+          <div class="person-detail">
+            <span class="person-name">👤 ${guest.name}</span>
+          </div>
+        `
+        
+        // Acompanhantes
+        if (additionalNames.length > 0) {
+          additionalNames.forEach((name, nameIndex) => {
+            if (name.trim()) {
+              // Determinar se é criança ou adulto baseado na posição
+              // As primeiras pessoas são adultas (6+ anos), as últimas são crianças (<6 anos)
+              const isChild = nameIndex >= (peopleOver6 - 1)
+              const ageIcon = isChild ? '👶' : '👤'
+              
+              detailedPeopleList += `
+                <div class="person-detail">
+                  <span class="person-name">${ageIcon} ${name.trim()}</span>
+                </div>
+              `
+            }
+          })
+        }
+        
+        htmlContent += `
+          <div class="guest-item">
+            <div class="guest-name">${index + 1}. ${sortAlphabetically ? guest.name : `Família de ${guest.name}`}</div>
+            <div class="guest-details">
+              <div class="people-list">
+                ${detailedPeopleList}
+              </div>
+              <div class="summary-badges">
+                <span class="badge">${peopleOver6} pessoa${peopleOver6 > 1 ? 's' : ''} 6+ anos</span>
+                ${childrenUnder6 > 0 ? `<span class="badge badge-children">${childrenUnder6} criança${childrenUnder6 > 1 ? 's' : ''} &lt;6 anos</span>` : ''}
+              </div>
+              <div class="guest-date">
+                Confirmado em: ${new Date(guest.created_at).toLocaleDateString('pt-BR')}
+              </div>
+            </div>
+          </div>
+        `
+      })
+      
+      htmlContent += `
+          </div>
+          
+          <div class="footer">
+            <p><strong>Lista gerada em:</strong> ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}</p>
+            <p><strong>Local:</strong> Karol Buffet - Rua Noruega 155, Maraponga, Fortaleza - CE</p>
+            <p><strong>Contato:</strong> Jesa - (85) 9 3192-6460</p>
+          </div>
+        </body>
+        </html>
+      `
+      
+      // Abrir em nova janela para impressão
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(htmlContent)
+        printWindow.document.close()
+        
+        // Aguardar o conteúdo carregar e então imprimir
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+            printWindow.close()
+          }, 500)
+        }
+        
+        toast({
+          title: "Abrindo para impressão!",
+          description: `A lista ${sortAlphabetically ? 'ordenada alfabeticamente ' : ''}será aberta em uma nova janela para impressão/PDF.`,
+        })
+      } else {
+        throw new Error("Não foi possível abrir a janela de impressão")
+      }
+      
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error)
+      toast({
+        title: "Erro ao gerar PDF",
+        description: "Não foi possível abrir a lista para impressão.",
+        variant: "destructive",
+      })
+    }
+  }
+
   // Tela de login
   if (showLogin) {
     return (
@@ -629,9 +938,27 @@ export default function AdminPage() {
         {/* Lista de Confirmações */}
         <Card style={{ backgroundColor: "#ECF2F2", borderColor: "#A9D2D8" }}>
           <CardHeader>
-            <CardTitle style={{ color: "#D0AC8A" }}>
-              Confirmações ({confirmations.length})
-            </CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle style={{ color: "#D0AC8A" }}>
+                Confirmações ({confirmations.length})
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => downloadGuestListPDF(false)}
+                  style={{ backgroundColor: "#5A9BA5", color: "white" }}
+                  className="flex items-center gap-2"
+                >
+                  📄 PDF Normal
+                </Button>
+                <Button
+                  onClick={() => downloadGuestListPDF(true)}
+                  style={{ backgroundColor: "#D0AC8A", color: "white" }}
+                  className="flex items-center gap-2"
+                >
+                  🔤 PDF Alfabético
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {confirmations.length === 0 ? (
